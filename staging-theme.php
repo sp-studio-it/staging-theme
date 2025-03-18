@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Staging Theme
  * Description: Permette di creare più versioni di staging di un tema e attivarle tramite parametro nell'URL
- * Version: 1.1.1-beta
+ * Version: 1.1.1-beta-2
  * Author: Daniel D'Antonio
  */
 
@@ -12,12 +12,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class Staging_Theme
-{
+class Staging_Theme {
 
     // Costruisce il nome della directory di staging
-    private function get_staging_dir($theme_slug, $version)
-    {
+    private function get_staging_dir($theme_slug, $version) {
         return $theme_slug . '-staging-' . $version;
     }
 
@@ -25,8 +23,7 @@ class Staging_Theme
     private $url_param = 'staging';
 
     // Costruttore
-    public function __construct()
-    {
+    public function __construct() {
         // Filtro per cambiare il tema quando è presente il parametro
         add_filter('template', array($this, 'switch_template'));
         add_filter('stylesheet', array($this, 'switch_stylesheet'));
@@ -42,8 +39,7 @@ class Staging_Theme
     }
 
     // Duplica il tema
-    public function duplicate_theme()
-    {
+    public function duplicate_theme() {
         // Verifica nonce per sicurezza
         check_admin_referer('staging_theme_nonce', 'staging_theme_nonce');
 
@@ -118,15 +114,13 @@ class Staging_Theme
     }
 
     // Ottieni tutte le versioni di staging
-    public function get_staging_versions()
-    {
+    public function get_staging_versions() {
         $versions = get_option('staging_theme_versions', array());
         return is_array($versions) ? $versions : array();
     }
 
     // Elimina una directory e il suo contenuto
-    private function delete_directory($dir)
-    {
+    private function delete_directory($dir) {
         if (!file_exists($dir)) {
             return true;
         }
@@ -149,8 +143,7 @@ class Staging_Theme
     }
 
     // Copia una directory e il suo contenuto
-    private function copy_directory($src, $dst)
-    {
+    private function copy_directory($src, $dst) {
         $dir = opendir($src);
         @mkdir($dst);
 
@@ -168,8 +161,7 @@ class Staging_Theme
     }
 
     // Cambia il template quando è presente il parametro staging nell'URL
-    public function switch_template($template)
-    {
+    public function switch_template($template) {
         if (isset($_GET[$this->url_param]) && !empty($_GET[$this->url_param])) {
             $staging_version = sanitize_title($_GET[$this->url_param]);
             $current_theme = get_option('stylesheet');
@@ -185,8 +177,7 @@ class Staging_Theme
     }
 
     // Cambia lo stylesheet quando è presente il parametro staging nell'URL
-    public function switch_stylesheet($stylesheet)
-    {
+    public function switch_stylesheet($stylesheet) {
         if (isset($_GET[$this->url_param]) && !empty($_GET[$this->url_param])) {
             $staging_version = sanitize_title($_GET[$this->url_param]);
             $current_stylesheet = get_option('stylesheet');
@@ -202,8 +193,7 @@ class Staging_Theme
     }
 
     // Elimina un tema di staging tramite AJAX
-    public function ajax_delete_staging_theme()
-    {
+    public function ajax_delete_staging_theme() {
         // Verifica nonce
         check_ajax_referer('delete_staging_theme', 'security');
 
@@ -243,8 +233,7 @@ class Staging_Theme
     }
 
     // Aggiunge una pagina di amministrazione
-    public function add_admin_menu()
-    {
+    public function add_admin_menu() {
         add_theme_page(
             'Staging Theme',
             'Staging Theme',
@@ -255,14 +244,12 @@ class Staging_Theme
     }
 
     // Registra le impostazioni
-    public function register_settings()
-    {
+    public function register_settings() {
         register_setting('staging_theme', 'staging_theme_options');
     }
 
     // Pagina di amministrazione
-    public function admin_page()
-    {
+    public function admin_page() {
         // Gestisci l'azione di duplicazione
         if (isset($_POST['duplicate_theme']) && isset($_POST['staging_version'])) {
             $this->duplicate_theme();
@@ -292,7 +279,18 @@ class Staging_Theme
                                 </td>
                             </tr>
                         </tbody>
-                    </table>
+                    <style>
+                    .staging-missing {
+                        color: #999;
+                        text-decoration: line-through;
+                    }
+                    .error-message {
+                        display: inline-block;
+                        margin-left: 10px;
+                        color: #d63638;
+                        font-style: italic;
+                    }
+                </style>
 
                     <p>
                         <input type="submit" name="duplicate_theme" class="button button-primary" value="Crea nuova versione di staging">
@@ -314,44 +312,38 @@ class Staging_Theme
                         <?php foreach ($staging_versions as $version): ?>
                             <?php
                             $theme_slug = get_option('stylesheet');
-                            $staging_theme_path = WP_CONTENT_DIR . '/themes/' . $this->get_staging_dir($theme_slug, $version);
-                            $theme_exists = file_exists($staging_theme_path);
+                            $staging_theme_dir = $this->get_staging_dir($theme_slug, $version);
+                            $staging_dir_exists = file_exists(WP_CONTENT_DIR . '/themes/' . $staging_theme_dir);
                             ?>
-                            <tr<?php echo !$theme_exists ? ' class="staging-missing"' : ''; ?>>
+                            <tr>
                                 <td><?php echo esc_html($version); ?></td>
                                 <td>
-                                    <?php if ($theme_exists): ?>
+                                    <?php if ($staging_dir_exists): ?>
                                         <a href="<?php echo esc_url(home_url('?staging=' . $version)); ?>" target="_blank">
                                             <?php echo esc_url(home_url('?staging=' . $version)); ?>
                                         </a>
                                     <?php else: ?>
-                                        <span class="staging-url-missing" title="La cartella del tema non esiste più">
+                                    <span class="staging-missing">
                                             <?php echo esc_url(home_url('?staging=' . $version)); ?>
+                                        <span class="error-message">Cartella tema non trovata</span>
                                         </span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <button class="button delete-staging-theme" data-version="<?php echo esc_attr($version); ?>" data-nonce="<?php echo wp_create_nonce('delete_staging_theme'); ?>"><?php echo $theme_exists ? 'Elimina' : 'Rimuovi dalla lista'; ?></button>
+                                    <?php if ($staging_dir_exists): ?>
+                                    <button class="button delete-staging-theme" data-version="<?php echo esc_attr($version); ?>" data-nonce="<?php echo wp_create_nonce('delete_staging_theme'); ?>">Elimina</button>
+                                    <?php else: ?>
+                                    <button class="button delete-staging-entry" data-version="<?php echo esc_attr($version); ?>" data-nonce="<?php echo wp_create_nonce('delete_staging_theme'); ?>">Rimuovi dalla lista</button>
+                                    <?php endif; ?>
                                 </td>
                                 </tr>
                             <?php endforeach; ?>
                     </tbody>
                 </table>
 
-                <style>
-                    .staging-missing {
-                        background-color: #ffe6e6;
-                    }
-
-                    .staging-url-missing {
-                        color: #999;
-                        text-decoration: line-through;
-                        cursor: not-allowed;
-                    }
-                </style>
-
                 <script type="text/javascript">
                     jQuery(document).ready(function($) {
+                    // Gestione eliminazione cartella del tema
                         $('.delete-staging-theme').on('click', function(e) {
                             e.preventDefault();
 
@@ -369,7 +361,8 @@ class Staging_Theme
                                 data: {
                                     action: 'delete_staging_theme',
                                     version: version,
-                                    security: nonce
+                                security: nonce,
+                                delete_files: true
                                 },
                                 beforeSend: function() {
                                     button.prop('disabled', true).text('Eliminazione...');
@@ -380,14 +373,54 @@ class Staging_Theme
                                             $(this).remove();
                                         });
                                     } else {
-                                        alert('Errore: ' + (response.data || 'Si è verificato un errore durante l\'elaborazione.'));
-                                        button.prop('disabled', false).text('Riprova');
+                                    alert('Errore: ' + response.data);
+                                    button.prop('disabled', false).text('Elimina');
+                                }
+                            },
+                            error: function() {
+                                alert('Si è verificato un errore durante l\'eliminazione.');
+                                button.prop('disabled', false).text('Elimina');
                                     }
-                                },
-                                error: function(xhr, status, error) {
-                                    console.log('Errore AJAX:', xhr.responseText);
-                                    alert('Si è verificato un errore durante l\'eliminazione. Controllare la console per dettagli.');
-                                    button.prop('disabled', false).text('Riprova');
+                        });
+                    });
+                    
+                    // Gestione rimozione dalla lista (quando la cartella non esiste)
+                    $('.delete-staging-entry').on('click', function(e) {
+                        e.preventDefault();
+                        
+                        if (!confirm('Sei sicuro di voler rimuovere questa versione di staging dalla lista?')) {
+                            return;
+                        }
+                        
+                        var button = $(this);
+                        var version = button.data('version');
+                        var nonce = button.data('nonce');
+                        
+                        $.ajax({
+                            url: ajaxurl,
+                            type: 'POST',
+                            data: {
+                                action: 'delete_staging_theme',
+                                version: version,
+                                security: nonce,
+                                delete_files: false
+                            },
+                            beforeSend: function() {
+                                button.prop('disabled', true).text('Rimozione...');
+                            },
+                            success: function(response) {
+                                if (response.success) {
+                                    button.closest('tr').fadeOut(400, function() {
+                                        $(this).remove();
+                                    });
+                                } else {
+                                    alert('Errore: ' + response.data);
+                                    button.prop('disabled', false).text('Rimuovi dalla lista');
+                                }
+                            },
+                            error: function() {
+                                alert('Si è verificato un errore durante la rimozione.');
+                                button.prop('disabled', false).text('Rimuovi dalla lista');
                                 }
                             });
                         });
@@ -400,7 +433,7 @@ class Staging_Theme
 }
 
 // Aggiungi script per mantenere il parametro staging nelle URL
-add_action('wp_enqueue_scripts', function () {
+    add_action('wp_enqueue_scripts', function() {
     wp_enqueue_script('staging-theme-sticky', plugin_dir_url(__FILE__) . 'js/staging-sticky.js', array(), '1.0', true);
 });
 
