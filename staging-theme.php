@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Staging Theme
  * Description: Permette di creare più versioni di staging di un tema e attivarle tramite parametro nell'URL
- * Version: 1.1.1-beta-2
+ * Version: 1.1.0
  * Author: Daniel D'Antonio
  */
 
@@ -279,18 +279,7 @@ class Staging_Theme {
                                 </td>
                             </tr>
                         </tbody>
-                    <style>
-                    .staging-missing {
-                        color: #999;
-                        text-decoration: line-through;
-                    }
-                    .error-message {
-                        display: inline-block;
-                        margin-left: 10px;
-                        color: #d63638;
-                        font-style: italic;
-                    }
-                </style>
+                    </table>
 
                     <p>
                         <input type="submit" name="duplicate_theme" class="button button-primary" value="Crea nuova versione di staging">
@@ -310,31 +299,15 @@ class Staging_Theme {
                     </thead>
                     <tbody>
                         <?php foreach ($staging_versions as $version): ?>
-                            <?php
-                            $theme_slug = get_option('stylesheet');
-                            $staging_theme_dir = $this->get_staging_dir($theme_slug, $version);
-                            $staging_dir_exists = file_exists(WP_CONTENT_DIR . '/themes/' . $staging_theme_dir);
-                            ?>
                             <tr>
                                 <td><?php echo esc_html($version); ?></td>
                                 <td>
-                                    <?php if ($staging_dir_exists): ?>
                                         <a href="<?php echo esc_url(home_url('?staging=' . $version)); ?>" target="_blank">
                                             <?php echo esc_url(home_url('?staging=' . $version)); ?>
                                         </a>
-                                    <?php else: ?>
-                                    <span class="staging-missing">
-                                            <?php echo esc_url(home_url('?staging=' . $version)); ?>
-                                        <span class="error-message">Cartella tema non trovata</span>
-                                        </span>
-                                    <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if ($staging_dir_exists): ?>
                                     <button class="button delete-staging-theme" data-version="<?php echo esc_attr($version); ?>" data-nonce="<?php echo wp_create_nonce('delete_staging_theme'); ?>">Elimina</button>
-                                    <?php else: ?>
-                                    <button class="button delete-staging-entry" data-version="<?php echo esc_attr($version); ?>" data-nonce="<?php echo wp_create_nonce('delete_staging_theme'); ?>">Rimuovi dalla lista</button>
-                                    <?php endif; ?>
                                 </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -343,7 +316,6 @@ class Staging_Theme {
 
                 <script type="text/javascript">
                     jQuery(document).ready(function($) {
-                    // Gestione eliminazione cartella del tema
                         $('.delete-staging-theme').on('click', function(e) {
                             e.preventDefault();
 
@@ -361,8 +333,7 @@ class Staging_Theme {
                                 data: {
                                     action: 'delete_staging_theme',
                                     version: version,
-                                security: nonce,
-                                delete_files: true
+                                security: nonce
                                 },
                                 beforeSend: function() {
                                     button.prop('disabled', true).text('Eliminazione...');
@@ -380,47 +351,6 @@ class Staging_Theme {
                             error: function() {
                                 alert('Si è verificato un errore durante l\'eliminazione.');
                                 button.prop('disabled', false).text('Elimina');
-                                    }
-                        });
-                    });
-                    
-                    // Gestione rimozione dalla lista (quando la cartella non esiste)
-                    $('.delete-staging-entry').on('click', function(e) {
-                        e.preventDefault();
-                        
-                        if (!confirm('Sei sicuro di voler rimuovere questa versione di staging dalla lista?')) {
-                            return;
-                        }
-                        
-                        var button = $(this);
-                        var version = button.data('version');
-                        var nonce = button.data('nonce');
-                        
-                        $.ajax({
-                            url: ajaxurl,
-                            type: 'POST',
-                            data: {
-                                action: 'delete_staging_theme',
-                                version: version,
-                                security: nonce,
-                                delete_files: false
-                            },
-                            beforeSend: function() {
-                                button.prop('disabled', true).text('Rimozione...');
-                            },
-                            success: function(response) {
-                                if (response.success) {
-                                    button.closest('tr').fadeOut(400, function() {
-                                        $(this).remove();
-                                    });
-                                } else {
-                                    alert('Errore: ' + response.data);
-                                    button.prop('disabled', false).text('Rimuovi dalla lista');
-                                }
-                            },
-                            error: function() {
-                                alert('Si è verificato un errore durante la rimozione.');
-                                button.prop('disabled', false).text('Rimuovi dalla lista');
                                 }
                             });
                         });
