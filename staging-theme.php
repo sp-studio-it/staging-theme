@@ -13,8 +13,10 @@ if (!defined('ABSPATH')) {
 
 class Staging_Theme {
     
-    // Prefisso per i temi di staging
-    private $staging_prefix = 'staging-';
+    // Costruisce il nome della directory di staging
+    private function get_staging_dir($theme_slug, $version) {
+        return $theme_slug . '-staging-' . $version;
+    }
     
     // Parametro URL per attivare il tema di staging
     private $url_param = 'staging';
@@ -59,7 +61,7 @@ class Staging_Theme {
         $theme_slug = get_option('stylesheet');
         
         // Percorso del tema di staging
-        $staging_theme_dir = WP_CONTENT_DIR . '/themes/' . $this->staging_prefix . $staging_version;
+        $staging_theme_dir = WP_CONTENT_DIR . '/themes/' . $theme_slug . '-staging-' . $staging_version;
         
         // Se la cartella di staging esiste già, mostra un errore
         if (file_exists($staging_theme_dir)) {
@@ -161,7 +163,8 @@ class Staging_Theme {
     public function switch_template($template) {
         if (isset($_GET[$this->url_param]) && !empty($_GET[$this->url_param])) {
             $staging_version = sanitize_title($_GET[$this->url_param]);
-            $staging_template = $this->staging_prefix . $staging_version;
+            $current_theme = get_option('stylesheet');
+            $staging_template = $this->get_staging_dir($current_theme, $staging_version);
             
             // Verifica se esiste il tema di staging
             if (file_exists(WP_CONTENT_DIR . '/themes/' . $staging_template)) {
@@ -176,7 +179,8 @@ class Staging_Theme {
     public function switch_stylesheet($stylesheet) {
         if (isset($_GET[$this->url_param]) && !empty($_GET[$this->url_param])) {
             $staging_version = sanitize_title($_GET[$this->url_param]);
-            $staging_stylesheet = $this->staging_prefix . $staging_version;
+            $current_stylesheet = get_option('stylesheet');
+            $staging_stylesheet = $this->get_staging_dir($current_stylesheet, $staging_version);
             
             // Verifica se esiste il tema di staging
             if (file_exists(WP_CONTENT_DIR . '/themes/' . $staging_stylesheet)) {
@@ -204,7 +208,7 @@ class Staging_Theme {
         }
         
         // Percorso del tema di staging
-        $staging_theme_dir = WP_CONTENT_DIR . '/themes/' . $this->staging_prefix . $version;
+        $staging_theme_dir = WP_CONTENT_DIR . '/themes/' . $this->get_staging_dir(get_option('stylesheet'), $version);
         
         // Verifica se esiste
         if (!file_exists($staging_theme_dir)) {
