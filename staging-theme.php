@@ -298,20 +298,42 @@ class Staging_Theme {
                     </thead>
                     <tbody>
                         <?php foreach ($staging_versions as $version): ?>
-                            <tr>
+                            <?php 
+                                $theme_slug = get_option('stylesheet');
+                                $staging_theme_path = WP_CONTENT_DIR . '/themes/' . $this->get_staging_dir($theme_slug, $version);
+                                $theme_exists = file_exists($staging_theme_path); 
+                            ?>
+                            <tr<?php echo !$theme_exists ? ' class="staging-missing"' : ''; ?>>
                                 <td><?php echo esc_html($version); ?></td>
                                 <td>
+                                    <?php if ($theme_exists): ?>
                                     <a href="<?php echo esc_url(home_url('?staging=' . $version)); ?>" target="_blank">
                                         <?php echo esc_url(home_url('?staging=' . $version)); ?>
                                     </a>
+                                    <?php else: ?>
+                                    <span class="staging-url-missing" title="La cartella del tema non esiste più">
+                                        <?php echo esc_url(home_url('?staging=' . $version)); ?>
+                                    </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
-                                    <button class="button delete-staging-theme" data-version="<?php echo esc_attr($version); ?>" data-nonce="<?php echo wp_create_nonce('delete_staging_theme'); ?>">Elimina</button>
+                                    <button class="button delete-staging-theme" data-version="<?php echo esc_attr($version); ?>" data-nonce="<?php echo wp_create_nonce('delete_staging_theme'); ?>"><?php echo $theme_exists ? 'Elimina' : 'Rimuovi dalla lista'; ?></button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                
+                <style>
+                    .staging-missing {
+                        background-color: #ffe6e6;
+                    }
+                    .staging-url-missing {
+                        color: #999;
+                        text-decoration: line-through;
+                        cursor: not-allowed;
+                    }
+                </style>
                 
                 <script type="text/javascript">
                 jQuery(document).ready(function($) {
