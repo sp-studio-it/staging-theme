@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Staging Theme
  * Description: Permette di creare più versioni di staging di un tema e attivarle tramite parametro nell'URL
- * Version: 1.1.1-beta1
+ * Version: 1.1.1-beta2
  * Author: Daniel D'Antonio
  */
 
@@ -335,7 +335,6 @@ class Staging_Theme {
                     <thead>
                         <tr>
                             <th>Versione</th>
-                            <th>Stato</th>
                             <th>URL di accesso</th>
                             <th>Azioni</th>
                         </tr>
@@ -344,13 +343,13 @@ class Staging_Theme {
                         <?php foreach ($staging_versions as $version): 
                             $theme_exists = $this->staging_theme_exists($version);
                         ?>
-                            <tr>
-                                <td><?php echo esc_html($version); ?></td>
+                            <tr<?php if (!$theme_exists): ?> class="error"<?php endif; ?>>
                                 <td>
-                                    <?php if ($theme_exists): ?>
-                                        <span style="color: green; font-weight: bold;">Attivo</span>
-                                    <?php else: ?>
-                                        <span style="color: red; font-weight: bold;">Tema non trovato</span>
+                                    <?php echo esc_html($version); ?>
+                                    <?php if (!$theme_exists): ?>
+                                        <div class="row-actions">
+                                            <span class="error" style="color: #dc3232;">Il tema è stato eliminato manualmente</span>
+                                        </div>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -359,7 +358,7 @@ class Staging_Theme {
                                             <?php echo esc_url(home_url('?staging=' . $version)); ?>
                                         </a>
                                     <?php else: ?>
-                                        <em>Il tema è stato eliminato manualmente</em>
+                                        <em>Non disponibile</em>
                                     <?php endif; ?>
                                 </td>
                                 <td>
