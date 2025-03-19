@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Staging Theme
  * Description: Permette di creare più versioni di staging di un tema e attivarle tramite parametro nell'URL
- * Version: 1.1.0
+ * Version: 1.1.1-beta1
  * Author: Daniel D'Antonio
  */
 
@@ -36,6 +36,9 @@ class Staging_Theme {
 
         // Aggiungi AJAX handler per eliminare i temi di staging
         add_action('wp_ajax_delete_staging_theme', array($this, 'ajax_delete_staging_theme'));
+        
+        // Aggiungi AJAX handler per rimuovere un tema dall'elenco
+        add_action('wp_ajax_remove_staging_theme_from_list', array($this, 'ajax_remove_staging_theme_from_list'));
     }
 
     // Duplica il tema
@@ -117,6 +120,13 @@ class Staging_Theme {
     public function get_staging_versions() {
         $versions = get_option('staging_theme_versions', array());
         return is_array($versions) ? $versions : array();
+    }
+
+    // Verifica se il tema di staging esiste fisicamente
+    public function staging_theme_exists($version) {
+        $current_stylesheet = get_option('stylesheet');
+        $staging_theme_dir = WP_CONTENT_DIR . '/themes/' . $this->get_staging_dir($current_stylesheet, $version);
+        return file_exists($staging_theme_dir);
     }
 
     // Elimina una directory e il suo contenuto
@@ -213,7 +223,10 @@ class Staging_Theme {
 
         // Verifica se esiste
         if (!file_exists($staging_theme_dir)) {
-            wp_send_json_error('Tema di staging non trovato');
+            // Se non esiste fisicamente, rimuovi solo dalla lista
+            $this->remove_from_versions_list($version);
+            wp_send_json_success('Tema rimosso dalla lista con successo');
+            return;
         }
 
         // Elimina la directory
@@ -222,14 +235,43 @@ class Staging_Theme {
         }
 
         // Rimuovi dalla lista
+        $this->remove_from_versions_list($version);
+
+        wp_send_json_success('Tema di staging eliminato con successo');
+    }
+
+    // Rimuovi un tema solo dalla lista senza eliminare i file
+    public function ajax_remove_staging_theme_from_list() {
+        // Verifica nonce
+        check_ajax_referer('remove_staging_theme', 'security');
+
+        // Verifica permessi
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permessi insufficienti');
+        }
+
+        $version = sanitize_title($_POST['version']);
+
+        if (empty($version)) {
+            wp_send_json_error('Versione non valida');
+        }
+
+        // Rimuovi dalla lista
+        $this->remove_from_versions_list($version);
+
+        wp_send_json_success('Tema rimosso dalla lista con successo');
+    }
+
+    // Funzione per rimuovere un tema dalla lista
+    private function remove_from_versions_list($version) {
         $staging_versions = $this->get_staging_versions();
         $key = array_search($version, $staging_versions);
         if ($key !== false) {
             unset($staging_versions[$key]);
             update_option('staging_theme_versions', array_values($staging_versions));
+            return true;
         }
-
-        wp_send_json_success('Tema di staging eliminato con successo');
+        return false;
     }
 
     // Aggiunge una pagina di amministrazione
@@ -293,21 +335,39 @@ class Staging_Theme {
                     <thead>
                         <tr>
                             <th>Versione</th>
+                            <th>Stato</th>
                             <th>URL di accesso</th>
                             <th>Azioni</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($staging_versions as $version): ?>
+                        <?php foreach ($staging_versions as $version): 
+                            $theme_exists = $this->staging_theme_exists($version);
+                        ?>
                             <tr>
                                 <td><?php echo esc_html($version); ?></td>
                                 <td>
+                                    <?php if ($theme_exists): ?>
+                                        <span style="color: green; font-weight: bold;">Attivo</span>
+                                    <?php else: ?>
+                                        <span style="color: red; font-weight: bold;">Tema non trovato</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($theme_exists): ?>
                                         <a href="<?php echo esc_url(home_url('?staging=' . $version)); ?>" target="_blank">
                                             <?php echo esc_url(home_url('?staging=' . $version)); ?>
                                         </a>
+                                    <?php else: ?>
+                                        <em>Il tema è stato eliminato manualmente</em>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
+                                    <?php if ($theme_exists): ?>
                                     <button class="button delete-staging-theme" data-version="<?php echo esc_attr($version); ?>" data-nonce="<?php echo wp_create_nonce('delete_staging_theme'); ?>">Elimina</button>
+                                    <?php else: ?>
+                                        <button class="button remove-staging-theme" data-version="<?php echo esc_attr($version); ?>" data-nonce="<?php echo wp_create_nonce('remove_staging_theme'); ?>">Rimuovi dall'elenco</button>
+                                    <?php endif; ?>
                                 </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -316,6 +376,7 @@ class Staging_Theme {
 
                 <script type="text/javascript">
                     jQuery(document).ready(function($) {
+                        // Gestisce l'eliminazione fisica del tema
                         $('.delete-staging-theme').on('click', function(e) {
                             e.preventDefault();
 
@@ -351,6 +412,46 @@ class Staging_Theme {
                             error: function() {
                                 alert('Si è verificato un errore durante l\'eliminazione.');
                                 button.prop('disabled', false).text('Elimina');
+                                }
+                            });
+                        });
+
+                        // Gestisce la rimozione dall'elenco (quando il tema è già stato eliminato manualmente)
+                        $('.remove-staging-theme').on('click', function(e) {
+                            e.preventDefault();
+
+                            if (!confirm('Sei sicuro di voler rimuovere questa versione dall\'elenco?')) {
+                                return;
+                            }
+
+                            var button = $(this);
+                            var version = button.data('version');
+                            var nonce = button.data('nonce');
+
+                            $.ajax({
+                                url: ajaxurl,
+                                type: 'POST',
+                                data: {
+                                    action: 'remove_staging_theme_from_list',
+                                    version: version,
+                                    security: nonce
+                                },
+                                beforeSend: function() {
+                                    button.prop('disabled', true).text('Rimozione...');
+                                },
+                                success: function(response) {
+                                    if (response.success) {
+                                        button.closest('tr').fadeOut(400, function() {
+                                            $(this).remove();
+                                        });
+                                    } else {
+                                        alert('Errore: ' + response.data);
+                                        button.prop('disabled', false).text('Rimuovi dall\'elenco');
+                                    }
+                                },
+                                error: function() {
+                                    alert('Si è verificato un errore durante la rimozione.');
+                                    button.prop('disabled', false).text('Rimuovi dall\'elenco');
                                 }
                             });
                         });
