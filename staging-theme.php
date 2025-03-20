@@ -346,7 +346,7 @@ class Staging_Theme {
                     <thead>
                         <tr>
                             <th>Versione</th>
-                            <th>ID Tema (Nome Cartella)</th>
+                            <th>ID Tema</th>
                             <th>URL di accesso</th>
                             <th>Azioni</th>
                         </tr>
