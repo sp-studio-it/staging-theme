@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Staging Theme
  * Description: Permette di creare più versioni di staging di un tema e attivarle tramite parametro nell'URL
- * Version: 1.1.1
+ * Version: 1.1.2
  * Author: Klaudo
  */
 
@@ -67,15 +67,30 @@ class Staging_Theme {
         // Percorso del tema di staging
         $staging_theme_dir = WP_CONTENT_DIR . '/themes/' . $theme_slug . '-staging-' . $staging_version;
 
-        // Se la cartella di staging esiste già, mostra un errore
+        // Se la cartella di staging esiste già, non mostriamo un errore ma riconosciamo il tema esistente
         if (file_exists($staging_theme_dir)) {
-            add_settings_error(
-                'staging_theme',
-                'staging_theme_error',
-                'Una versione di staging con questo nome esiste già. Scegli un nome diverso.',
-                'error'
-            );
-            return false;
+            // Controlla se questa versione è già nell'elenco
+            $staging_versions = $this->get_staging_versions();
+            if (!in_array($staging_version, $staging_versions)) {
+                // Se non è nell'elenco, aggiungiamola
+                $staging_versions[] = $staging_version;
+                update_option('staging_theme_versions', $staging_versions);
+                
+                add_settings_error(
+                    'staging_theme',
+                    'staging_theme_success',
+                    'Tema di staging esistente riconosciuto! Puoi accedere alla versione di staging aggiungendo ?staging=' . $staging_version . ' all\'URL.',
+                    'success'
+                );
+            } else {
+                add_settings_error(
+                    'staging_theme',
+                    'staging_theme_info',
+                    'Questa versione di staging è già registrata. Puoi accedere alla versione aggiungendo ?staging=' . $staging_version . ' all\'URL.',
+                    'info'
+                );
+            }
+            return true;
         }
 
         // Crea la cartella di staging
@@ -320,7 +335,7 @@ class Staging_Theme {
 
                 <form method="post" action="">
                     <?php wp_nonce_field('staging_theme_nonce', 'staging_theme_nonce'); ?>
-                    <p>Crea una nuova versione di staging del tema attuale. Ogni versione di staging è accessibile aggiungendo il parametro "staging" all'URL del sito.</p>
+                    <p>Crea una nuova versione di staging del tema attuale o registra una versione esistente. Ogni versione di staging è accessibile aggiungendo il parametro "staging" all'URL del sito.</p>
 
                     <table class="form-table" role="presentation">
                         <tbody>
@@ -329,13 +344,14 @@ class Staging_Theme {
                                 <td>
                                     <input name="staging_version" type="text" id="staging_version" value="" class="regular-text">
                                     <p class="description">Un nome univoco per identificare questa versione (es. "test-header", "nuovo-footer")</p>
+                                    <p class="description">Se la cartella del tema già esiste, verrà riconosciuta senza duplicare il tema.</p>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
 
                     <p>
-                        <input type="submit" name="duplicate_theme" class="button button-primary" value="Crea nuova versione di staging">
+                        <input type="submit" name="duplicate_theme" class="button button-primary" value="Crea/Registra versione di staging">
                     </p>
                 </form>
             </div>
