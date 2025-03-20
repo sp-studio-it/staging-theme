@@ -4,7 +4,7 @@
  * Plugin Name: Staging Theme
  * Description: Permette di creare più versioni di staging di un tema e attivarle tramite parametro nell'URL
  * Version: 1.1.1
- * Author: Daniel D'Antonio
+ * Author: Klaudo
  */
 
 // Previeni l'accesso diretto al file
@@ -289,6 +289,17 @@ class Staging_Theme {
     public function register_settings() {
         register_setting('staging_theme', 'staging_theme_options');
     }
+    
+    /**
+     * Restituisce l'ID completo (nome cartella) di un tema di staging
+     * 
+     * @param string $version La versione del tema di staging
+     * @return string L'ID completo del tema di staging
+     */
+    public function get_staging_theme_id($version) {
+        $theme_slug = get_option('stylesheet');
+        return $this->get_staging_dir($theme_slug, $version);
+    }
 
     // Pagina di amministrazione
     public function admin_page() {
@@ -335,6 +346,7 @@ class Staging_Theme {
                     <thead>
                         <tr>
                             <th>Versione</th>
+                            <th>ID Tema</th>
                             <th>URL di accesso</th>
                             <th>Azioni</th>
                         </tr>
@@ -351,6 +363,9 @@ class Staging_Theme {
                                             <span class="error" style="color: #dc3232;">Il tema è stato eliminato manualmente</span>
                                         </div>
                                     <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php echo esc_html($this->get_staging_theme_id($version)); ?>
                                 </td>
                                 <td>
                                     <?php if ($theme_exists): ?>
