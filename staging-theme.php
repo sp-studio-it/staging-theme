@@ -476,7 +476,6 @@ class Staging_Theme {
                                             <button type="button" class="button copy-path-button" data-path="<?php echo esc_attr($ftp_path); ?>">
                                                 <span class="dashicons dashicons-clipboard" style="margin-top: 3px;"></span> Copia
                                             </button>
-                                            <span class="hosting-type <?php echo esc_attr($hosting_type); ?>" title="Rilevato tipo hosting: <?php echo esc_attr(ucfirst($hosting_type)); ?>"></span>
                                         </div>
                                     <?php else: ?>
                                         <em>Non disponibile</em>
@@ -516,25 +515,6 @@ class Staging_Theme {
                     }
                     .copy-path-button .dashicons {
                         margin-right: 3px;
-                    }
-                    .hosting-type {
-                        width: 12px;
-                        height: 12px;
-                        border-radius: 50%;
-                        display: inline-block;
-                        cursor: help;
-                    }
-                    .hosting-type.siteground {
-                        background-color: #ff6c2c;
-                    }
-                    .hosting-type.plesk {
-                        background-color: #52BBD7;
-                    }
-                    .hosting-type.cpanel {
-                        background-color: #FF6C2C;
-                    }
-                    .hosting-type.standard {
-                        background-color: #aaa;
                     }
                 </style>
 
