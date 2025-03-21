@@ -317,49 +317,61 @@ class Staging_Theme {
     }
 
     /**
-     * Determina se l'hosting è SiteGround
+     * Rileva il tipo di hosting
      * 
-     * @return bool True se l'hosting è SiteGround
+     * @return string Tipo di hosting (siteground, plesk, cpanel, ecc.)
      */
-    public function is_siteground() {
-        // Metodo 1: Controlla la presenza di informazioni SiteGround nei percorsi
-        $server_path = $_SERVER['DOCUMENT_ROOT'] ?? '';
-        if (strpos($server_path, '/www/') !== false && strpos($server_path, '/public_html') !== false) {
-            return true;
-        }
-        
-        // Metodo 2: Controlla la presenza di variabili di ambiente specifiche SiteGround
-        if (isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'SiteGround') !== false) {
-            return true;
-        }
-        
-        // Metodo 3: Controlla la struttura delle cartelle
+    public function detect_hosting_type() {
+        // Cerca nell'ABSPATH elementi che possano identificare l'hosting
         $abspath = ABSPATH;
-        if (strpos($abspath, '/www/') !== false && strpos($abspath, '/public_html') !== false) {
-            return true;
+        
+        if (strpos($abspath, '/www/') !== false && strpos($abspath, '/public_html/') !== false) {
+            return 'siteground';
+        } elseif (strpos($abspath, '/vhosts/') !== false && strpos($abspath, '/httpdocs/') !== false) {
+            return 'plesk';
+        } elseif (strpos($abspath, '/public_html/') !== false) {
+            return 'cpanel';
         }
         
-        return false;
+        // Default
+        return 'standard';
     }
     
     /**
-     * Restituisce il percorso completo alla cartella del tema di staging sul server per FTP
+     * Restituisce il dominio del sito corrente
+     * 
+     * @return string Nome del dominio senza http/https
+     */
+    public function get_site_domain() {
+        return str_replace(array('https://', 'http://'), '', site_url());
+    }
+    
+    /**
+     * Restituisce il percorso completo alla cartella del tema di staging sul server
      * 
      * @param string $version La versione del tema di staging
+     * @param bool $ftp_path Se true, restituisce il percorso completo per FTP
      * @return string Il percorso alla cartella del tema
      */
-    public function get_staging_theme_path_for_ftp($version) {
+    public function get_staging_theme_path($version, $ftp_path = false) {
         $theme_id = $this->get_staging_theme_id($version);
         
-        // Determina il prefisso del percorso in base all'hosting
-        if ($this->is_siteground()) {
-            // Su SiteGround, ottieni il nome del dominio dal sito
-            $domain = parse_url(home_url(), PHP_URL_HOST);
-            return $domain . '/public_html/wp-content/themes/' . $theme_id;
-        } else {
-            // Su altri hosting (come Plesk/Aruba), usa la document root
+        if ($ftp_path) {
+            // Percorso completo per FTP con considerazione del tipo di hosting
+            $hosting_type = $this->detect_hosting_type();
             $document_root = $this->get_document_root_folder();
-            return $document_root . '/wp-content/themes/' . $theme_id;
+            $domain = $this->get_site_domain();
+            
+            if ($hosting_type === 'siteground') {
+                // Per SiteGround: dominio/public_html/wp-content/themes/...
+                return $domain . '/' . $document_root . '/wp-content/themes/' . $theme_id;
+            } else {
+                // Per Plesk e altri: httpdocs/wp-content/themes/...
+                return $document_root . '/wp-content/themes/' . $theme_id;
+            }
+        } else {
+            // Percorso assoluto completo
+            return ABSPATH . 'wp-content/themes/' . $theme_id;
         }
     }
     
@@ -431,8 +443,7 @@ class Staging_Theme {
                     <tbody>
                         <?php foreach ($staging_versions as $version): 
                             $theme_exists = $this->staging_theme_exists($version);
-                            $ftp_path = $this->get_staging_theme_path($version, true);
-                            $is_siteground = $this->is_siteground();
+                            $theme_path = $this->get_staging_theme_path($version);
                         ?>
                             <tr<?php if (!$theme_exists): ?> class="error"<?php endif; ?>>
                                 <td>
@@ -458,16 +469,14 @@ class Staging_Theme {
                                 <td>
                                     <?php if ($theme_exists): 
                                         $ftp_path = $this->get_staging_theme_path($version, true);
-                                        $is_siteground = $this->is_siteground();
+                                        $hosting_type = $this->detect_hosting_type();
                                     ?>
                                         <div class="copy-path-container">
                                             <code class="path-code"><?php echo esc_html($ftp_path); ?></code>
                                             <button type="button" class="button copy-path-button" data-path="<?php echo esc_attr($ftp_path); ?>">
                                                 <span class="dashicons dashicons-clipboard" style="margin-top: 3px;"></span> Copia
                                             </button>
-                                        </div>
-                                        <div class="hosting-info">
-                                            <small><?php echo $is_siteground ? 'Rilevato hosting SiteGround' : 'Rilevato hosting standard (es. Plesk/Aruba)'; ?></small>
+                                            <span class="hosting-type <?php echo esc_attr($hosting_type); ?>" title="Rilevato tipo hosting: <?php echo esc_attr(ucfirst($hosting_type)); ?>"></span>
                                         </div>
                                     <?php else: ?>
                                         <em>Non disponibile</em>
@@ -503,14 +512,29 @@ class Staging_Theme {
                         flex-shrink: 0;
                         display: flex;
                         align-items: center;
+                        margin-right: 8px;
                     }
                     .copy-path-button .dashicons {
                         margin-right: 3px;
                     }
-                    .hosting-info {
-                        margin-top: 4px;
-                        color: #666;
-                        font-style: italic;
+                    .hosting-type {
+                        width: 12px;
+                        height: 12px;
+                        border-radius: 50%;
+                        display: inline-block;
+                        cursor: help;
+                    }
+                    .hosting-type.siteground {
+                        background-color: #ff6c2c;
+                    }
+                    .hosting-type.plesk {
+                        background-color: #52BBD7;
+                    }
+                    .hosting-type.cpanel {
+                        background-color: #FF6C2C;
+                    }
+                    .hosting-type.standard {
+                        background-color: #aaa;
                     }
                 </style>
 
