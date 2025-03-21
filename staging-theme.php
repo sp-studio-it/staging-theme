@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Staging Theme
  * Description: Permette di creare più versioni di staging di un tema e attivarle tramite parametro nell'URL
- * Version: 1.1.2
+ * Version: 1.1.3
  * Author: Klaudo
  */
 
@@ -316,6 +316,18 @@ class Staging_Theme {
         return $this->get_staging_dir($theme_slug, $version);
     }
 
+    /**
+     * Restituisce il percorso completo alla cartella del tema di staging sul server
+     * 
+     * @param string $version La versione del tema di staging
+     * @return string Il percorso completo alla cartella del tema
+     */
+    public function get_staging_theme_path($version) {
+        $theme_id = $this->get_staging_theme_id($version);
+        $path = ABSPATH . 'wp-content/themes/' . $theme_id;
+        return $path;
+    }
+
     // Pagina di amministrazione
     public function admin_page() {
         // Gestisci l'azione di duplicazione
@@ -364,12 +376,14 @@ class Staging_Theme {
                             <th>Versione</th>
                             <th>ID Tema</th>
                             <th>URL di accesso</th>
+                            <th>Percorso sul server</th>
                             <th>Azioni</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($staging_versions as $version): 
                             $theme_exists = $this->staging_theme_exists($version);
+                            $theme_path = $this->get_staging_theme_path($version);
                         ?>
                             <tr<?php if (!$theme_exists): ?> class="error"<?php endif; ?>>
                                 <td>
@@ -394,6 +408,18 @@ class Staging_Theme {
                                 </td>
                                 <td>
                                     <?php if ($theme_exists): ?>
+                                        <div class="copy-path-container">
+                                            <code class="path-code"><?php echo esc_html($theme_path); ?></code>
+                                            <button type="button" class="button copy-path-button" data-path="<?php echo esc_attr($theme_path); ?>">
+                                                <span class="dashicons dashicons-clipboard" style="margin-top: 3px;"></span> Copia
+                                            </button>
+                                        </div>
+                                    <?php else: ?>
+                                        <em>Non disponibile</em>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($theme_exists): ?>
                                     <button class="button delete-staging-theme" data-version="<?php echo esc_attr($version); ?>" data-nonce="<?php echo wp_create_nonce('delete_staging_theme'); ?>">Elimina</button>
                                     <?php else: ?>
                                         <button class="button remove-staging-theme" data-version="<?php echo esc_attr($version); ?>" data-nonce="<?php echo wp_create_nonce('remove_staging_theme'); ?>">Rimuovi dall'elenco</button>
@@ -404,8 +430,66 @@ class Staging_Theme {
                     </tbody>
                 </table>
 
+                <style>
+                    .copy-path-container {
+                        display: flex;
+                        align-items: center;
+                    }
+                    .path-code {
+                        flex: 1;
+                        margin-right: 10px;
+                        background: #f0f0f1;
+                        padding: 5px;
+                        border-radius: 3px;
+                        word-break: break-all;
+                    }
+                    .copy-path-button {
+                        flex-shrink: 0;
+                        display: flex;
+                        align-items: center;
+                    }
+                    .copy-path-button .dashicons {
+                        margin-right: 3px;
+                    }
+                    .copy-success {
+                        color: #388e3c;
+                        padding-left: 5px;
+                        display: none;
+                    }
+                </style>
+
                 <script type="text/javascript">
                     jQuery(document).ready(function($) {
+                        // Gestisce la copia del percorso negli appunti
+                        $('.copy-path-button').on('click', function() {
+                            var pathText = $(this).data('path');
+                            var button = $(this);
+                            var originalText = button.html();
+                            
+                            // Crea un elemento di testo temporaneo per copiare il testo
+                            var tempInput = $('<textarea>');
+                            $('body').append(tempInput);
+                            tempInput.val(pathText).select();
+                            
+                            try {
+                                // Esegui il comando di copia
+                                document.execCommand('copy');
+                                
+                                // Feedback all'utente
+                                button.html('<span class="dashicons dashicons-yes" style="margin-top: 3px;"></span> Copiato!');
+                                
+                                // Ripristina il testo del pulsante dopo 2 secondi
+                                setTimeout(function() {
+                                    button.html(originalText);
+                                }, 2000);
+                            } catch (err) {
+                                alert('Impossibile copiare il percorso: ' + err);
+                            }
+                            
+                            // Rimuovi l'elemento temporaneo
+                            tempInput.remove();
+                        });
+
                         // Gestisce l'eliminazione fisica del tema
                         $('.delete-staging-theme').on('click', function(e) {
                             e.preventDefault();
@@ -494,8 +578,15 @@ class Staging_Theme {
 }
 
 // Aggiungi script per mantenere il parametro staging nelle URL
-    add_action('wp_enqueue_scripts', function() {
+add_action('wp_enqueue_scripts', function() {
     wp_enqueue_script('staging-theme-sticky', plugin_dir_url(__FILE__) . 'js/staging-sticky.js', array(), '1.0', true);
+});
+
+// Aggiungi gli stili Dashicons per i pulsanti
+add_action('admin_enqueue_scripts', function($hook) {
+    if ('appearance_page_staging-theme' === $hook) {
+        wp_enqueue_style('dashicons');
+    }
 });
 
 // Inizializza il plugin
