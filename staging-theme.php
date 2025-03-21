@@ -317,21 +317,49 @@ class Staging_Theme {
     }
 
     /**
-     * Restituisce il percorso completo alla cartella del tema di staging sul server
+     * Determina se l'hosting è SiteGround
+     * 
+     * @return bool True se l'hosting è SiteGround
+     */
+    public function is_siteground() {
+        // Metodo 1: Controlla la presenza di informazioni SiteGround nei percorsi
+        $server_path = $_SERVER['DOCUMENT_ROOT'] ?? '';
+        if (strpos($server_path, '/www/') !== false && strpos($server_path, '/public_html') !== false) {
+            return true;
+        }
+        
+        // Metodo 2: Controlla la presenza di variabili di ambiente specifiche SiteGround
+        if (isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'SiteGround') !== false) {
+            return true;
+        }
+        
+        // Metodo 3: Controlla la struttura delle cartelle
+        $abspath = ABSPATH;
+        if (strpos($abspath, '/www/') !== false && strpos($abspath, '/public_html') !== false) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Restituisce il percorso completo alla cartella del tema di staging sul server per FTP
      * 
      * @param string $version La versione del tema di staging
-     * @param bool $relative Se true, restituisce il percorso relativo dalla document root
      * @return string Il percorso alla cartella del tema
      */
-    public function get_staging_theme_path($version, $relative = false) {
+    public function get_staging_theme_path_for_ftp($version) {
         $theme_id = $this->get_staging_theme_id($version);
         
-        if ($relative) {
-            // Percorso relativo dalla document root
-            return 'wp-content/themes/' . $theme_id;
+        // Determina il prefisso del percorso in base all'hosting
+        if ($this->is_siteground()) {
+            // Su SiteGround, ottieni il nome del dominio dal sito
+            $domain = parse_url(home_url(), PHP_URL_HOST);
+            return $domain . '/public_html/wp-content/themes/' . $theme_id;
         } else {
-            // Percorso assoluto completo
-            return ABSPATH . 'wp-content/themes/' . $theme_id;
+            // Su altri hosting (come Plesk/Aruba), usa la document root
+            $document_root = $this->get_document_root_folder();
+            return $document_root . '/wp-content/themes/' . $theme_id;
         }
     }
     
@@ -428,25 +456,17 @@ class Staging_Theme {
                                 </td>
                                 <td>
                                     <?php if ($theme_exists): 
-                                        $relative_path = $this->get_staging_theme_path($version, true);
-                                        $document_root = $this->get_document_root_folder();
+                                        $ftp_path = $this->get_staging_theme_path($version, true);
+                                        $is_siteground = $this->is_siteground();
                                     ?>
                                         <div class="copy-path-container">
-                                            <div class="path-options">
-                                                <div class="path-option">
-                                                    <code class="path-code"><?php echo esc_html($relative_path); ?></code>
-                                                    <button type="button" class="button copy-path-button" data-path="<?php echo esc_attr($relative_path); ?>">
-                                                        <span class="dashicons dashicons-clipboard" style="margin-top: 3px;"></span> Copia
-                                                    </button>
-                                                </div>
-                                                
-                                                <div class="path-help">
-                                                    <p class="description">
-                                                        <span class="dashicons dashicons-info" style="color: #0073aa;"></span> 
-                                                        Percorso relativo per accesso FTP. La cartella document root è: <strong><?php echo esc_html($document_root); ?></strong>
-                                                    </p>
-                                                </div>
-                                            </div>
+                                            <code class="path-code"><?php echo esc_html($ftp_path); ?></code>
+                                            <button type="button" class="button copy-path-button" data-path="<?php echo esc_attr($ftp_path); ?>">
+                                                <span class="dashicons dashicons-clipboard" style="margin-top: 3px;"></span> Copia
+                                            </button>
+                                        </div>
+                                        <div class="hosting-info">
+                                            <small><?php echo $is_siteground ? 'Rilevato hosting SiteGround' : 'Rilevato hosting standard (es. Plesk/Aruba)'; ?></small>
                                         </div>
                                     <?php else: ?>
                                         <em>Non disponibile</em>
@@ -467,15 +487,7 @@ class Staging_Theme {
                 <style>
                     .copy-path-container {
                         display: flex;
-                        align-items: flex-start;
-                    }
-                    .path-options {
-                        flex: 1;
-                    }
-                    .path-option {
-                        display: flex;
                         align-items: center;
-                        flex-wrap: wrap;
                     }
                     .path-code {
                         flex: 1;
@@ -494,22 +506,10 @@ class Staging_Theme {
                     .copy-path-button .dashicons {
                         margin-right: 3px;
                     }
-                    .copy-success {
-                        color: #388e3c;
-                        padding-left: 5px;
-                        display: none;
-                    }
-                    .path-help {
-                        margin-top: 8px;
-                        font-size: 12px;
-                    }
-                    .path-help p {
-                        margin: 0;
-                        display: flex;
-                        align-items: center;
-                    }
-                    .path-help .dashicons {
-                        margin-right: 5px;
+                    .hosting-info {
+                        margin-top: 4px;
+                        color: #666;
+                        font-style: italic;
                     }
                 </style>
 
