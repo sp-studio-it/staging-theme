@@ -431,7 +431,8 @@ class Staging_Theme {
                     <tbody>
                         <?php foreach ($staging_versions as $version): 
                             $theme_exists = $this->staging_theme_exists($version);
-                            $theme_path = $this->get_staging_theme_path($version);
+                            $ftp_path = $this->get_staging_theme_path($version, true);
+                            $is_siteground = $this->is_siteground();
                         ?>
                             <tr<?php if (!$theme_exists): ?> class="error"<?php endif; ?>>
                                 <td>
