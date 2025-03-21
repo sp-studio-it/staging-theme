@@ -320,12 +320,32 @@ class Staging_Theme {
      * Restituisce il percorso completo alla cartella del tema di staging sul server
      * 
      * @param string $version La versione del tema di staging
-     * @return string Il percorso completo alla cartella del tema
+     * @param bool $relative Se true, restituisce il percorso relativo dalla document root
+     * @return string Il percorso alla cartella del tema
      */
-    public function get_staging_theme_path($version) {
+    public function get_staging_theme_path($version, $relative = false) {
         $theme_id = $this->get_staging_theme_id($version);
-        $path = ABSPATH . 'wp-content/themes/' . $theme_id;
-        return $path;
+        
+        if ($relative) {
+            // Percorso relativo dalla document root
+            return 'wp-content/themes/' . $theme_id;
+        } else {
+            // Percorso assoluto completo
+            return ABSPATH . 'wp-content/themes/' . $theme_id;
+        }
+    }
+    
+    /**
+     * Restituisce la document root del server (cartella pubblica)
+     * 
+     * @return string Nome della cartella document root (es. "httpdocs", "public_html")
+     */
+    public function get_document_root_folder() {
+        $abspath = ABSPATH;
+        $parts = explode('/', rtrim($abspath, '/'));
+        
+        // La document root è generalmente l'ultima cartella nel percorso ABSPATH
+        return end($parts);
     }
 
     // Pagina di amministrazione
@@ -376,7 +396,7 @@ class Staging_Theme {
                             <th>Versione</th>
                             <th>ID Tema</th>
                             <th>URL di accesso</th>
-                            <th>Percorso sul server</th>
+                            <th>Percorso FTP</th>
                             <th>Azioni</th>
                         </tr>
                     </thead>
@@ -407,12 +427,26 @@ class Staging_Theme {
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if ($theme_exists): ?>
+                                    <?php if ($theme_exists): 
+                                        $relative_path = $this->get_staging_theme_path($version, true);
+                                        $document_root = $this->get_document_root_folder();
+                                    ?>
                                         <div class="copy-path-container">
-                                            <code class="path-code"><?php echo esc_html($theme_path); ?></code>
-                                            <button type="button" class="button copy-path-button" data-path="<?php echo esc_attr($theme_path); ?>">
-                                                <span class="dashicons dashicons-clipboard" style="margin-top: 3px;"></span> Copia
-                                            </button>
+                                            <div class="path-options">
+                                                <div class="path-option">
+                                                    <code class="path-code"><?php echo esc_html($relative_path); ?></code>
+                                                    <button type="button" class="button copy-path-button" data-path="<?php echo esc_attr($relative_path); ?>">
+                                                        <span class="dashicons dashicons-clipboard" style="margin-top: 3px;"></span> Copia
+                                                    </button>
+                                                </div>
+                                                
+                                                <div class="path-help">
+                                                    <p class="description">
+                                                        <span class="dashicons dashicons-info" style="color: #0073aa;"></span> 
+                                                        Percorso relativo per accesso FTP. La cartella document root è: <strong><?php echo esc_html($document_root); ?></strong>
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
                                     <?php else: ?>
                                         <em>Non disponibile</em>
@@ -433,7 +467,15 @@ class Staging_Theme {
                 <style>
                     .copy-path-container {
                         display: flex;
+                        align-items: flex-start;
+                    }
+                    .path-options {
+                        flex: 1;
+                    }
+                    .path-option {
+                        display: flex;
                         align-items: center;
+                        flex-wrap: wrap;
                     }
                     .path-code {
                         flex: 1;
@@ -442,6 +484,7 @@ class Staging_Theme {
                         padding: 5px;
                         border-radius: 3px;
                         word-break: break-all;
+                        font-size: 12px;
                     }
                     .copy-path-button {
                         flex-shrink: 0;
@@ -455,6 +498,18 @@ class Staging_Theme {
                         color: #388e3c;
                         padding-left: 5px;
                         display: none;
+                    }
+                    .path-help {
+                        margin-top: 8px;
+                        font-size: 12px;
+                    }
+                    .path-help p {
+                        margin: 0;
+                        display: flex;
+                        align-items: center;
+                    }
+                    .path-help .dashicons {
+                        margin-right: 5px;
                     }
                 </style>
 
