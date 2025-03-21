@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Staging Theme
  * Description: Permette di creare più versioni di staging di un tema e attivarle tramite parametro nell'URL
- * Version: 1.1.2
+ * Version: 1.1.3
  * Author: Klaudo
  */
 
@@ -316,6 +316,78 @@ class Staging_Theme {
         return $this->get_staging_dir($theme_slug, $version);
     }
 
+    /**
+     * Rileva il tipo di hosting
+     * 
+     * @return string Tipo di hosting (siteground, plesk, cpanel, ecc.)
+     */
+    public function detect_hosting_type() {
+        // Cerca nell'ABSPATH elementi che possano identificare l'hosting
+        $abspath = ABSPATH;
+        
+        if (strpos($abspath, '/www/') !== false && strpos($abspath, '/public_html/') !== false) {
+            return 'siteground';
+        } elseif (strpos($abspath, '/vhosts/') !== false && strpos($abspath, '/httpdocs/') !== false) {
+            return 'plesk';
+        } elseif (strpos($abspath, '/public_html/') !== false) {
+            return 'cpanel';
+        }
+        
+        // Default
+        return 'standard';
+    }
+    
+    /**
+     * Restituisce il dominio del sito corrente
+     * 
+     * @return string Nome del dominio senza http/https
+     */
+    public function get_site_domain() {
+        return str_replace(array('https://', 'http://'), '', site_url());
+    }
+    
+    /**
+     * Restituisce il percorso completo alla cartella del tema di staging sul server
+     * 
+     * @param string $version La versione del tema di staging
+     * @param bool $ftp_path Se true, restituisce il percorso completo per FTP
+     * @return string Il percorso alla cartella del tema
+     */
+    public function get_staging_theme_path($version, $ftp_path = false) {
+        $theme_id = $this->get_staging_theme_id($version);
+        
+        if ($ftp_path) {
+            // Percorso completo per FTP con considerazione del tipo di hosting
+            $hosting_type = $this->detect_hosting_type();
+            $document_root = $this->get_document_root_folder();
+            $domain = $this->get_site_domain();
+            
+            if ($hosting_type === 'siteground') {
+                // Per SiteGround: dominio/public_html/wp-content/themes/...
+                return $domain . '/' . $document_root . '/wp-content/themes/' . $theme_id;
+            } else {
+                // Per Plesk e altri: httpdocs/wp-content/themes/...
+                return $document_root . '/wp-content/themes/' . $theme_id;
+            }
+        } else {
+            // Percorso assoluto completo
+            return ABSPATH . 'wp-content/themes/' . $theme_id;
+        }
+    }
+    
+    /**
+     * Restituisce la document root del server (cartella pubblica)
+     * 
+     * @return string Nome della cartella document root (es. "httpdocs", "public_html")
+     */
+    public function get_document_root_folder() {
+        $abspath = ABSPATH;
+        $parts = explode('/', rtrim($abspath, '/'));
+        
+        // La document root è generalmente l'ultima cartella nel percorso ABSPATH
+        return end($parts);
+    }
+
     // Pagina di amministrazione
     public function admin_page() {
         // Gestisci l'azione di duplicazione
@@ -364,12 +436,14 @@ class Staging_Theme {
                             <th>Versione</th>
                             <th>ID Tema</th>
                             <th>URL di accesso</th>
+                            <th>Percorso FTP</th>
                             <th>Azioni</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($staging_versions as $version): 
                             $theme_exists = $this->staging_theme_exists($version);
+                            $theme_path = $this->get_staging_theme_path($version);
                         ?>
                             <tr<?php if (!$theme_exists): ?> class="error"<?php endif; ?>>
                                 <td>
@@ -393,6 +467,21 @@ class Staging_Theme {
                                     <?php endif; ?>
                                 </td>
                                 <td>
+                                    <?php if ($theme_exists): 
+                                        $ftp_path = $this->get_staging_theme_path($version, true);
+                                        $hosting_type = $this->detect_hosting_type();
+                                    ?>
+                                        <div class="copy-path-container">
+                                            <code class="path-code"><?php echo esc_html($ftp_path); ?></code>
+                                            <button type="button" class="button copy-path-button" data-path="<?php echo esc_attr($ftp_path); ?>">
+                                                <span class="dashicons dashicons-clipboard" style="margin-top: 3px;"></span> Copia
+                                            </button>
+                                        </div>
+                                    <?php else: ?>
+                                        <em>Non disponibile</em>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
                                     <?php if ($theme_exists): ?>
                                     <button class="button delete-staging-theme" data-version="<?php echo esc_attr($version); ?>" data-nonce="<?php echo wp_create_nonce('delete_staging_theme'); ?>">Elimina</button>
                                     <?php else: ?>
@@ -404,8 +493,63 @@ class Staging_Theme {
                     </tbody>
                 </table>
 
+                <style>
+                    .copy-path-container {
+                        display: flex;
+                        align-items: center;
+                    }
+                    .path-code {
+                        flex: 1;
+                        margin-right: 10px;
+                        background: #f0f0f1;
+                        padding: 5px;
+                        border-radius: 3px;
+                        word-break: break-all;
+                        font-size: 12px;
+                    }
+                    .copy-path-button {
+                        flex-shrink: 0;
+                        display: flex;
+                        align-items: center;
+                        margin-right: 8px;
+                    }
+                    .copy-path-button .dashicons {
+                        margin-right: 3px;
+                    }
+                </style>
+
                 <script type="text/javascript">
                     jQuery(document).ready(function($) {
+                        // Gestisce la copia del percorso negli appunti
+                        $('.copy-path-button').on('click', function() {
+                            var pathText = $(this).data('path');
+                            var button = $(this);
+                            var originalText = button.html();
+                            
+                            // Crea un elemento di testo temporaneo per copiare il testo
+                            var tempInput = $('<textarea>');
+                            $('body').append(tempInput);
+                            tempInput.val(pathText).select();
+                            
+                            try {
+                                // Esegui il comando di copia
+                                document.execCommand('copy');
+                                
+                                // Feedback all'utente
+                                button.html('<span class="dashicons dashicons-yes" style="margin-top: 3px;"></span> Copiato!');
+                                
+                                // Ripristina il testo del pulsante dopo 2 secondi
+                                setTimeout(function() {
+                                    button.html(originalText);
+                                }, 2000);
+                            } catch (err) {
+                                alert('Impossibile copiare il percorso: ' + err);
+                            }
+                            
+                            // Rimuovi l'elemento temporaneo
+                            tempInput.remove();
+                        });
+
                         // Gestisce l'eliminazione fisica del tema
                         $('.delete-staging-theme').on('click', function(e) {
                             e.preventDefault();
@@ -494,8 +638,15 @@ class Staging_Theme {
 }
 
 // Aggiungi script per mantenere il parametro staging nelle URL
-    add_action('wp_enqueue_scripts', function() {
+add_action('wp_enqueue_scripts', function() {
     wp_enqueue_script('staging-theme-sticky', plugin_dir_url(__FILE__) . 'js/staging-sticky.js', array(), '1.0', true);
+});
+
+// Aggiungi gli stili Dashicons per i pulsanti
+add_action('admin_enqueue_scripts', function($hook) {
+    if ('appearance_page_staging-theme' === $hook) {
+        wp_enqueue_style('dashicons');
+    }
 });
 
 // Inizializza il plugin
