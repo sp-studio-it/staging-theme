@@ -4,7 +4,7 @@
  * Plugin Name: Staging Theme
  * Description: Permette di creare più versioni di staging di un tema e attivarle tramite parametro nell'URL
  * Version: 1.1.3
- * Author: Klaudo
+ * Author: SP Studio
  */
 
 // Previeni l'accesso diretto al file
