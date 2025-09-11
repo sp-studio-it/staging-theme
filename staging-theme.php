@@ -59,12 +59,26 @@ class Staging_Theme {
             if (function_exists('error_log')) {
                 error_log('[STAGING AJAX] Entrato in include_staging_ajax_file');
             }
-            // Recupera la versione di staging dal parametro (usando la stessa logica del plugin)
+            // Recupera la versione di staging da REQUEST, Referer, cookie (come la logica di bootstrap)
             $version = null;
-            if (isset($_GET['staging']) && $_GET['staging'] !== '') {
-                $version = sanitize_title($_GET['staging']);
-            } elseif (isset($_POST['staging']) && $_POST['staging'] !== '') {
-                $version = sanitize_title($_POST['staging']);
+            if (isset($_REQUEST['staging']) && $_REQUEST['staging'] !== '') {
+                $version = sanitize_title($_REQUEST['staging']);
+            } else {
+                // Prova dal Referer
+                $referer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
+                if (!empty($referer)) {
+                    $q = parse_url($referer, PHP_URL_QUERY);
+                    if (!empty($q)) {
+                        parse_str($q, $queryParams);
+                        if (!empty($queryParams['staging'])) {
+                            $version = sanitize_title($queryParams['staging']);
+                        }
+                    }
+                }
+                // Fallback: cookie
+                if (empty($version) && isset($_COOKIE['staging_version']) && $_COOKIE['staging_version'] !== '') {
+                    $version = sanitize_title($_COOKIE['staging_version']);
+                }
             }
             if (function_exists('error_log')) {
                 error_log('[STAGING AJAX] Version rilevata: ' . var_export($version, true));
