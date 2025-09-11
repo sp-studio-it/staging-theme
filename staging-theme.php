@@ -56,6 +56,9 @@ class Staging_Theme {
      */
     public static function include_staging_ajax_file() {
         if (defined('DOING_AJAX') && DOING_AJAX) {
+            if (function_exists('error_log')) {
+                error_log('[STAGING AJAX] Entrato in include_staging_ajax_file');
+            }
             // Recupera la versione di staging dal parametro (usando la stessa logica del plugin)
             $version = null;
             if (isset($_GET['staging']) && $_GET['staging'] !== '') {
@@ -63,14 +66,26 @@ class Staging_Theme {
             } elseif (isset($_POST['staging']) && $_POST['staging'] !== '') {
                 $version = sanitize_title($_POST['staging']);
             }
+            if (function_exists('error_log')) {
+                error_log('[STAGING AJAX] Version rilevata: ' . var_export($version, true));
+            }
             if ($version) {
-                // Usa la logica della classe per ottenere la directory del tema di staging
                 $instance = new self();
-                if ($instance->staging_theme_exists($version)) {
+                $exists = $instance->staging_theme_exists($version);
+                if (function_exists('error_log')) {
+                    error_log('[STAGING AJAX] staging_theme_exists: ' . ($exists ? 'true' : 'false'));
+                }
+                if ($exists) {
                     $staging_theme_path = $instance->get_staging_theme_path($version);
                     $ajax_file = rtrim($staging_theme_path, '/').'/ajax.php';
+                    if (function_exists('error_log')) {
+                        error_log('[STAGING AJAX] ajax_file path: ' . $ajax_file . ' | exists: ' . (file_exists($ajax_file) ? 'true' : 'false'));
+                    }
                     if (file_exists($ajax_file)) {
                         include_once $ajax_file;
+                        if (function_exists('error_log')) {
+                            error_log('[STAGING AJAX] ajax.php incluso!');
+                        }
                     }
                 }
             }
