@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Staging Theme
  * Description: Permette di creare più versioni di staging di un tema e attivarle tramite parametro nell'URL
- * Version: 1.1.3
+ * Version: 1.1.4
  * Author: SP Studio
  */
 
@@ -28,6 +28,11 @@ class Staging_Theme {
         add_filter('template', array($this, 'switch_template'));
         add_filter('stylesheet', array($this, 'switch_stylesheet'));
 
+    // Inizializza il contesto di staging anche per richieste AJAX/REST (eseguito molto presto)
+    add_action('init', array($this, 'bootstrap_staging_context'), 1);
+        // Includi subito la logica per le chiamate AJAX (prima di tutto)
+        self::include_staging_ajax_file();
+
         // Aggiungi menu in amministrazione
         add_action('admin_menu', array($this, 'add_admin_menu'));
 
@@ -39,6 +44,101 @@ class Staging_Theme {
         
         // Aggiungi AJAX handler per rimuovere un tema dall'elenco
         add_action('wp_ajax_remove_staging_theme_from_list', array($this, 'ajax_remove_staging_theme_from_list'));
+
+    // Endpoint di debug per verificare il contesto di staging nelle richieste AJAX
+    add_action('wp_ajax_staging_debug', array($this, 'ajax_staging_debug'));
+    add_action('wp_ajax_nopriv_staging_debug', array($this, 'ajax_staging_debug'));
+    }
+    
+    /**
+     * Includi ajax.php dal tema di staging in tutte le richieste AJAX se il parametro staging è presente.
+     * Usa la logica già esistente per identificare versione e directory.
+     */
+    public static function include_staging_ajax_file() {
+        if (defined('DOING_AJAX') && DOING_AJAX) {
+            // Recupera la versione di staging dal parametro (usando la stessa logica del plugin)
+            $version = null;
+            if (isset($_GET['staging']) && $_GET['staging'] !== '') {
+                $version = sanitize_title($_GET['staging']);
+            } elseif (isset($_POST['staging']) && $_POST['staging'] !== '') {
+                $version = sanitize_title($_POST['staging']);
+            }
+            if ($version) {
+                // Usa la logica della classe per ottenere la directory del tema di staging
+                $instance = new self();
+                if ($instance->staging_theme_exists($version)) {
+                    $staging_theme_path = $instance->get_staging_theme_path($version);
+                    $ajax_file = rtrim($staging_theme_path, '/').'/ajax.php';
+                    if (file_exists($ajax_file)) {
+                        include_once $ajax_file;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Imposta il contesto di staging in modo robusto per tutte le richieste rilevanti.
+     * - Frontend: se presente ?staging= in URL, salva un cookie per uso futuro (AJAX)
+     * - AJAX/REST: se manca il parametro nella richiesta, prova a recuperarlo dal cookie
+     * Quindi imposta $_GET['staging'] così che i filtri 'template' e 'stylesheet' possano funzionare.
+     */
+    public function bootstrap_staging_context() {
+        $is_ajax = defined('DOING_AJAX') && DOING_AJAX;
+        $is_rest = defined('REST_REQUEST') && REST_REQUEST;
+
+        // 1) Se l'URL corrente ha già il parametro staging, aggiorna il cookie (utile per future chiamate AJAX)
+        if (isset($_GET[$this->url_param]) && $_GET[$this->url_param] !== '') {
+            $version = sanitize_title($_GET[$this->url_param]);
+
+            // Aggiorna cookie solo se la versione è valida (tema di staging esistente)
+            if ($this->staging_theme_exists($version)) {
+                $cookie_path = defined('COOKIEPATH') ? COOKIEPATH : '/';
+                $cookie_domain = defined('COOKIE_DOMAIN') ? COOKIE_DOMAIN : '';
+                $expire = time() + (defined('DAY_IN_SECONDS') ? DAY_IN_SECONDS : 86400) * 7; // 7 giorni
+                // Imposta cookie disponibile su tutto il sito
+                setcookie('staging_version', $version, $expire, $cookie_path, $cookie_domain, is_ssl(), true);
+            }
+            return; // Non sovrascrivere nulla: abbiamo già il parametro esplicito nell'URL
+        }
+
+        // 2) Per richieste AJAX/REST: propaga staging da REQUEST o Referer; evita di usare il cookie se la pagina non è in contesto staging
+        if ($is_ajax || $is_rest) {
+            $version = null;
+
+            // a) Parametro esplicito nella richiesta (GET/POST)
+            if (isset($_REQUEST[$this->url_param]) && $_REQUEST[$this->url_param] !== '') {
+                $version = sanitize_title($_REQUEST[$this->url_param]);
+            } else {
+                // b) Prova a leggere dal Referer della pagina che ha originato la chiamata
+                $referer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
+                if (!empty($referer)) {
+                    $q = parse_url($referer, PHP_URL_QUERY);
+                    if (!empty($q)) {
+                        parse_str($q, $queryParams);
+                        if (!empty($queryParams[$this->url_param])) {
+                            $version = sanitize_title($queryParams[$this->url_param]);
+                        }
+                    }
+                }
+
+                // c) Solo se il Referer non è disponibile ma il cookie esiste, usa il cookie come fallback prudente
+                if (empty($version) && isset($_COOKIE['staging_version']) && $_COOKIE['staging_version'] !== '') {
+                    $version = sanitize_title($_COOKIE['staging_version']);
+                }
+            }
+
+            if (!empty($version) && $this->staging_theme_exists($version)) {
+                $_GET[$this->url_param] = $version;
+            }
+        } else {
+            // 3) Navigazione normale senza parametro: rimuovi il cookie per evitare effetti collaterali su richieste future
+            if (!isset($_GET[$this->url_param]) && isset($_COOKIE['staging_version'])) {
+                $cookie_path = defined('COOKIEPATH') ? COOKIEPATH : '/';
+                $cookie_domain = defined('COOKIE_DOMAIN') ? COOKIE_DOMAIN : '';
+                setcookie('staging_version', '', time() - 3600, $cookie_path, $cookie_domain, is_ssl(), true);
+            }
+        }
     }
 
     // Duplica il tema
@@ -275,6 +375,23 @@ class Staging_Theme {
         $this->remove_from_versions_list($version);
 
         wp_send_json_success('Tema rimosso dalla lista con successo');
+    }
+
+    /**
+     * Endpoint AJAX di debug: restituisce informazioni sul tema attivo
+     * e sulla versione di staging rilevata in questa richiesta.
+     */
+    public function ajax_staging_debug() {
+        // Non forziamo nonce per debug, ma limitiamo l'output
+        $detected_staging = isset($_GET[$this->url_param]) ? sanitize_title($_GET[$this->url_param]) : null;
+        $data = array(
+            'is_ajax' => (defined('DOING_AJAX') && DOING_AJAX),
+            'template' => get_option('template'),
+            'stylesheet' => get_option('stylesheet'),
+            'stylesheet_dir' => function_exists('get_stylesheet_directory') ? get_stylesheet_directory() : null,
+            'detected_staging_param' => $detected_staging,
+        );
+        wp_send_json_success($data);
     }
 
     // Funzione per rimuovere un tema dalla lista
