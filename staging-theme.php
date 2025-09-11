@@ -23,8 +23,11 @@ class Staging_Theme {
     private $url_param = 'staging';
 
     // Costruttore
-    public function __construct() {
-        // Filtro per cambiare il tema quando è presente il parametro
+    public function __construct($skip_hooks = false) {
+        if ($skip_hooks) {
+            return;
+        }
+        // Aggiunge i filtri per cambiare il tema quando è presente il parametro
         add_filter('template', array($this, 'switch_template'));
         add_filter('stylesheet', array($this, 'switch_stylesheet'));
 
@@ -84,7 +87,7 @@ class Staging_Theme {
                 error_log('[STAGING AJAX] Version rilevata: ' . var_export($version, true));
             }
             if ($version) {
-                $instance = new self();
+                $instance = new self(true);
                 $exists = $instance->staging_theme_exists($version);
                 if (function_exists('error_log')) {
                     error_log('[STAGING AJAX] staging_theme_exists: ' . ($exists ? 'true' : 'false'));
@@ -716,7 +719,7 @@ class Staging_Theme {
                                     version: version,
                                 security: nonce
                                 },
-                                beforeSend: function() {
+                                before_send: function() {
                                     button.prop('disabled', true).text('Eliminazione...');
                                 },
                                 success: function(response) {
@@ -756,7 +759,7 @@ class Staging_Theme {
                                     version: version,
                                     security: nonce
                                 },
-                                beforeSend: function() {
+                                before_send: function() {
                                     button.prop('disabled', true).text('Rimozione...');
                                 },
                                 success: function(response) {
