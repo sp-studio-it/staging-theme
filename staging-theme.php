@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Staging Theme
  * Description: Permette di creare più versioni di staging di un tema e attivarle tramite parametro nell'URL
- * Version: 1.2
+ * Version: 1.2.1
  * Author: SP Studio
  * Changelog: Aggiunto supporto robusto per richieste AJAX/REST.
  */
@@ -789,8 +789,58 @@ class Staging_Theme {
 
 // Aggiungi script per mantenere il parametro staging nelle URL
 add_action('wp_enqueue_scripts', function() {
-    wp_enqueue_script('staging-theme-sticky', plugin_dir_url(__FILE__) . 'js/staging-sticky.js', array(), '1.0', true);
+    wp_enqueue_script('staging-theme-sticky', plugin_dir_url(__FILE__) . 'js/staging-sticky.js', array(), '2.0', true);
 });
+
+// Funzione helper per aggiungere il parametro staging a qualsiasi URL generato da PHP
+function staging_theme_add_param_to_url($url) {
+    // Ottieni la versione di staging corrente
+    $version = null;
+    
+    // Controlla prima i parametri GET
+    if (isset($_GET['staging']) && $_GET['staging'] !== '') {
+        $version = sanitize_title($_GET['staging']);
+    } 
+    // Altrimenti controlla il cookie
+    else if (isset($_COOKIE['staging_version']) && $_COOKIE['staging_version'] !== '') {
+        $version = sanitize_title($_COOKIE['staging_version']);
+    }
+    
+    // Se non c'è versione o l'URL è vuoto, restituisci l'URL originale
+    if (empty($version) || empty($url)) {
+        return $url;
+    }
+    
+    // Non modificare URL che puntano all'admin
+    if (strpos($url, '/wp-admin/') !== false) {
+        return $url;
+    }
+    
+    // Controlla se l'URL ha già il parametro staging
+    if (strpos($url, 'staging=' . $version) !== false) {
+        return $url; // Il parametro esiste già
+    }
+    
+    // Aggiungi il parametro staging all'URL
+    $separator = (strpos($url, '?') !== false) ? '&' : '?';
+    return $url . $separator . 'staging=' . $version;
+}
+
+// Filtri per aggiungere il parametro staging a tutti gli URL generati da WordPress
+add_filter('page_link', 'staging_theme_add_param_to_url', 99);
+add_filter('post_link', 'staging_theme_add_param_to_url', 99);
+add_filter('term_link', 'staging_theme_add_param_to_url', 99);
+add_filter('attachment_link', 'staging_theme_add_param_to_url', 99);
+add_filter('year_link', 'staging_theme_add_param_to_url', 99);
+add_filter('month_link', 'staging_theme_add_param_to_url', 99);
+add_filter('day_link', 'staging_theme_add_param_to_url', 99);
+add_filter('search_link', 'staging_theme_add_param_to_url', 99);
+add_filter('get_pagenum_link', 'staging_theme_add_param_to_url', 99);
+
+// WooCommerce specifici
+add_filter('woocommerce_get_cart_url', 'staging_theme_add_param_to_url', 99);
+add_filter('woocommerce_get_checkout_url', 'staging_theme_add_param_to_url', 99);
+add_filter('woocommerce_get_product_permalink', 'staging_theme_add_param_to_url', 99);
 
 // Aggiungi gli stili Dashicons per i pulsanti
 add_action('admin_enqueue_scripts', function($hook) {
