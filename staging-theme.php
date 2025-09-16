@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Staging Theme
  * Description: Permette di creare più versioni di staging di un tema e attivarle tramite parametro nell'URL
- * Version: 1.2.1
+ * Version: 1.2.2
  * Author: SP Studio
  * Changelog: Aggiunto supporto robusto per richieste AJAX/REST.
  */
@@ -789,7 +789,14 @@ class Staging_Theme {
 
 // Aggiungi script per mantenere il parametro staging nelle URL
 add_action('wp_enqueue_scripts', function() {
+    // Script principale per modificare i link e le navigazioni
     wp_enqueue_script('staging-theme-sticky', plugin_dir_url(__FILE__) . 'js/staging-sticky.js', array(), '2.0', true);
+    
+    // Intercettatore universale di click e navigazioni
+    wp_enqueue_script('staging-click-interceptor', plugin_dir_url(__FILE__) . 'js/staging-click-interceptor.js', array(), '1.0', true);
+    
+    // Priorità massima per garantire che sia l'ultimo script caricato
+    wp_script_add_data('staging-click-interceptor', 'group', 1);
 });
 
 // Funzione helper per aggiungere il parametro staging a qualsiasi URL generato da PHP
