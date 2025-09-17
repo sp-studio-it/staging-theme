@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Staging Theme
  * Description: Permette di creare più versioni di staging di un tema e attivarle tramite parametro nell'URL
- * Version: 1.2.2
+ * Version: 1.2.3
  * Author: SP Studio
  * Changelog: Aggiunto supporto robusto per richieste AJAX/REST.
  */

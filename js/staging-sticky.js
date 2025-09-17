@@ -8,6 +8,10 @@
  * Versione 2.0: Soluzione avanzata con intercettazione di tutte le navigazioni
  */
 (function() { // IIFE per inizializzare subito senza attendere DOMContentLoaded
+  // Disable all console logging
+  if (window.console) {
+    console.log = console.info = console.warn = console.error = function() {};
+  }
   // Inizializzazione immediata per catturare anche eventi precoci
   // e funzioni definite prima del caricamento del DOM
   // Ottieni i parametri dall'URL corrente
@@ -114,6 +118,8 @@
       return originalOpen.call(window, window.addStagingParam(url), name, specs);
     };
     
+    // Disabilitato per evitare errori con proprietà non configurabili
+    /*
     // Sorveglia eventuali assegnazioni a window.location.href
     let locationHref = window.location.href;
     Object.defineProperty(window.location, 'href', {
@@ -126,6 +132,7 @@
         return true;
       }
     });
+    */
     // Seleziona tutti i link nella pagina
     const links = document.querySelectorAll('a');
     
@@ -357,7 +364,7 @@
             return window.addStagingParam(url);
           });
         } catch(e) {
-          console.log('[Staging Theme] WP Hooks non disponibile');
+          // WP Hooks non disponibile
         }
       }
       
@@ -376,7 +383,7 @@
     
     // Aggiungi una funzione di monitoraggio per debug
     window.stagingTheme.debug = function(info) {
-      console.log('[Staging Theme Debug]', info);
+      // Debug function placeholder
     };
     
     // Comunica agli script esterni che il sistema di staging è attivo
@@ -425,9 +432,9 @@
       }
     });
     
-    console.log('[Staging Theme] Modalità staging attiva con parametro "' + activeStagingParam + '"');
-  } else {
-    console.log('[Staging Theme] Modalità staging non attiva');
+  // Staging attivo con parametro: "' + activeStagingParam + '"
+    } else {
+      // Modalità staging non attiva
   }
 
   // Anche se non c'è parametro staging, rendiamo disponibile la funzione per uso futuro

@@ -13,6 +13,10 @@
  */
 
 (function() {
+  // Disable all console logging
+  if (window.console) {
+    console.log = console.info = console.warn = console.error = function() {};
+  }
   // Funzione per ottenere il parametro staging dall'URL o dal cookie
   function getStagingParam() {
     // Primo controllo: parametro nell'URL
@@ -171,11 +175,14 @@
     });
     
     // Sostituisci window.location con il nostro proxy
+    // Disabilitato per evitare errori con proprietà non configurabili
+    /*
     Object.defineProperty(window, 'location', {
       value: locationProxy,
       writable: false,
       configurable: false
     });
+    */
   } catch (e) {
     console.error('[Staging Click Interceptor] Impossibile sovrascrivere window.location:', e);
     
@@ -193,14 +200,19 @@
     // Per window.location.href dobbiamo usare un altro approccio
     let locationHref = window.location.href;
     try {
+      // Disabilitato per evitare errori con proprietà non configurabili
+      /*
       Object.defineProperty(window.location, 'href', {
-        get: function() { return locationHref; },
+        get: function() {
+          return locationHref;
+        },
         set: function(url) {
           locationHref = addStagingParam(url);
           originalAssign.call(window.location, locationHref);
           return true;
         }
       });
+      */
     } catch(e) {
       console.error('[Staging Click Interceptor] Impossibile sovrascrivere window.location.href:', e);
     }
