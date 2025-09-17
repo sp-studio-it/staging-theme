@@ -13,10 +13,7 @@
  */
 
 (function() {
-  // Disable all console logging
-  if (window.console) {
-    console.log = console.info = console.warn = console.error = function() {};
-  }
+
   // Funzione per ottenere il parametro staging dall'URL o dal cookie
   function getStagingParam() {
     // Primo controllo: parametro nell'URL
@@ -94,7 +91,7 @@
       // Riattacca il frammento
       return urlPart + fragment;
     } catch (err) {
-      console.error('[Staging Theme] Errore durante l\'elaborazione dell\'URL:', err, url);
+
       return url; // In caso di errore, restituisci l'URL originale
     }
   }
@@ -129,7 +126,7 @@
         const modifiedHref = addStagingParam(href);
         if (modifiedHref !== href) {
           // Debug
-          console.log('[Staging Click Interceptor] Modificato link:', href, '->', modifiedHref);
+
           
           // Applica la modifica
           target.setAttribute('href', modifiedHref);
@@ -149,7 +146,7 @@
         if (prop === 'href') {
           // Modifica l'URL prima di assegnarlo
           value = addStagingParam(value);
-          console.log('[Staging Click Interceptor] Intercettato window.location.href:', value);
+
         }
         return Reflect.set(obj, prop, value);
       },
@@ -158,14 +155,14 @@
         if (prop === 'assign') {
           return function(url) {
             const modifiedUrl = addStagingParam(url);
-            console.log('[Staging Click Interceptor] Intercettato window.location.assign:', url, '->', modifiedUrl);
+
             return originalWindowLocation.assign(modifiedUrl);
           };
         }
         if (prop === 'replace') {
           return function(url) {
             const modifiedUrl = addStagingParam(url);
-            console.log('[Staging Click Interceptor] Intercettato window.location.replace:', url, '->', modifiedUrl);
+
             return originalWindowLocation.replace(modifiedUrl);
           };
         }
@@ -184,7 +181,7 @@
     });
     */
   } catch (e) {
-    console.error('[Staging Click Interceptor] Impossibile sovrascrivere window.location:', e);
+
     
     // Fallback: intercetta i metodi specifici
     const originalAssign = window.location.assign;
@@ -214,7 +211,7 @@
       });
       */
     } catch(e) {
-      console.error('[Staging Click Interceptor] Impossibile sovrascrivere window.location.href:', e);
+
     }
   }
   
@@ -268,11 +265,7 @@
           const oldUrl = obj[key];
           obj[key] = addStagingParam(oldUrl);
           
-          // Debug solo se l'URL è stato effettivamente modificato
-          if (obj[key] !== oldUrl) {
-            console.log('[Staging Click Interceptor] Modificato URL in risposta JSON:', 
-                      key, oldUrl, '->', obj[key]);
-          }
+
         } 
         // Se è un oggetto o array, processa ricorsivamente
         else if (obj[key] && typeof obj[key] === 'object') {
@@ -323,10 +316,7 @@
                     const oldUrl = obj[key];
                     obj[key] = addStagingParam(oldUrl);
                     
-                    if (oldUrl !== obj[key]) {
-                      console.log('[Staging Interceptor] Modificato URL in risposta AJAX:', 
-                                currentPath, oldUrl, '->', obj[key]);
-                    }
+
                   } 
                   else if (obj[key] && typeof obj[key] === 'object') {
                     deepModify(obj[key], currentPath);
@@ -384,7 +374,6 @@
                     const newUrl = addStagingParam(oldUrl);
                     
                     if (oldUrl !== newUrl) {
-                      console.log('[Staging Interceptor] Modificato URL in Promise:', currentPath, oldUrl, '->', newUrl);
                       obj[key] = newUrl;
                     }
                   } 
@@ -407,5 +396,5 @@
     }
   });
   
-  console.log('[Staging Interceptor] Intercettazione universale attivata per parametro:', activeStagingParam);
+
 })();

@@ -8,10 +8,6 @@
  * Versione 2.0: Soluzione avanzata con intercettazione di tutte le navigazioni
  */
 (function() { // IIFE per inizializzare subito senza attendere DOMContentLoaded
-  // Disable all console logging
-  if (window.console) {
-    console.log = console.info = console.warn = console.error = function() {};
-  }
   // Inizializzazione immediata per catturare anche eventi precoci
   // e funzioni definite prima del caricamento del DOM
   // Ottieni i parametri dall'URL corrente
@@ -96,7 +92,7 @@
         // Riattacca il frammento
         return urlPart + fragment;
       } catch (err) {
-        console.error('[Staging Theme] Errore durante l\'elaborazione dell\'URL:', err);
+        // Errore durante l'elaborazione dell'URL
         return url; // In caso di errore, restituisci l'URL originale
       }
     };
